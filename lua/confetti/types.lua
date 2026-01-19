@@ -1,5 +1,9 @@
 ---@meta
 
+---@class (exact) Config
+---@field x number
+---@field y number
+
 ---@class GuiHighlight More info with 'help: highlight', 'help: highlight-args'
 ---@field guifg string|nil Text color (eg. "white", "#a89984" )
 ---@field guibg string|nil Background color (eg. "black", "#d79921" )
