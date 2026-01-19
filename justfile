@@ -10,9 +10,15 @@ fmt-just:
     @just --fmt --unstable
 
 setup:
-    printf "mini.nvim & tests"
     mkdir -p deps
-    git clone --filter=blob:none https://github.com/nvim-mini/mini.nvim deps/mini.nvim
+    -git clone --filter=blob:none https://github.com/nvim-mini/mini.nvim deps/mini.nvim
+    -git clone --filter=blob:none https://github.com/nvim-mini/mini.doc deps/mini.doc
+
+[group('ci')]
+docs:
+    # https://nvim-mini.org/mini.nvim/doc/mini-doc.html#module-setup
+    nvim --headless --noplugin -u "./scripts/init.lua" -c "lua require('mini.doc').generate()"
+    nvim --headless --noplugin -u "./scripts/init.lua" -c ":helptags ./doc"
 
 # Run all test files
 [group('test')]

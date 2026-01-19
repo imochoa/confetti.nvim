@@ -1,0 +1,201 @@
+                                                                          *jobs*
+                                     `jobs`
+Type ~
+`(Job[])`
+
+------------------------------------------------------------------------------
+                                                                    *M.reload()*
+                                  `M.reload`()
+Reload this module (for debugging)
+
+------------------------------------------------------------------------------
+Class ~
+{ConfettiConfig}
+Fields ~
+{reused_hlgroups} `(string[])` List of existing highlight groups to use
+{colors} `(GuiHighlight[])` New highlights to create with a lua interface
+
+------------------------------------------------------------------------------
+                                                                     *M.setup()*
+                              `M.setup`({config})
+Parameters ~
+{config} `(Config)`
+
+
+==============================================================================
+------------------------------------------------------------------------------
+                                                                       *M.ns_id*
+                                   `M.ns_id`
+Type ~
+`(number)`
+
+------------------------------------------------------------------------------
+                                                       *M.nvim_global_hl_groups*
+                           `M.nvim_global_hl_groups`
+Type ~
+`(table<string,table>)`
+
+------------------------------------------------------------------------------
+                                                                   *M.log_level*
+                                 `M.log_level`
+Type ~
+`(vim.log.levels)`
+
+------------------------------------------------------------------------------
+                                                                       *M.log()*
+                                 `M.log`({txt})
+Parameters ~
+{txt} `(string)`
+nil
+
+
+==============================================================================
+------------------------------------------------------------------------------
+"confetti.types"
+
+------------------------------------------------------------------------------
+                                                      *hl_with_pattern_search()*
+                 `hl_with_pattern_search`({regexp}, {hl_group})
+default highlighting logic, should always work
+Only works on 1 line!
+Using both regexp matching to find lines and literal text in lua...
+
+    vim.fn.search -> search for pattern, return line number. 'n' flag to not move cursor
+    vim.fn.getline -> get contents of line
+    vim.fn.matchlist -> search for pattern in String, return list of matches, using capture groups
+
+    # EXAMPLE
+    local defaults = vim.fn.matchlist(vim.fn.getline(vim.fn.search('^defaults:', 'n')), '^defaults:\\s*\\(.*\\)$')[2]
+    defaults = defaults and ' -d '..defaults or ''
+
+    vim.bo.makeprg = 'pandoc' .. defaults .. ' -o "%:p:r.pdf" "%:p"'
+    vim.bo.errorformat = '%f, line %l: %m' -- TODO
+Parameters ~
+{regexp} `(string)` Regular expression for vim.fn.searchpos
+{hl_group} `(string)`
+Return ~
+`(boolean)`
+
+------------------------------------------------------------------------------
+                                                          *M.visual_selection()*
+                        `M.visual_selection`({hl_group})
+Visual selection
+Parameters ~
+{hl_group} `(hl_group)`
+Return ~
+`(Job)` `(optional)`
+
+------------------------------------------------------------------------------
+                                                                     *M.cword()*
+                             `M.cword`({hl_group})
+default highlighting logic, should always work
+TODO: try builtin.grep_string() Default result is current word
+local current_word = require("telescope.builtin").grep_string()
+Parameters ~
+{hl_group} `(string)`
+Return ~
+`(Job)` `(optional)`
+
+------------------------------------------------------------------------------
+                                                          *hl_with_treesitter()*
+                 `hl_with_treesitter`({node_text}, {hl_group})
+input?
+Parameters ~
+{node_text} `(string)`
+{hl_group} `(string)`
+Return ~
+`(boolean)` ok
+
+------------------------------------------------------------------------------
+                                                                *M.treesitter()*
+                           `M.treesitter`({hl_group})
+Parameters ~
+{hl_group} `(string)`
+Return ~
+`(Job)` `(optional)`
+
+
+==============================================================================
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} Config
+Fields ~
+{x} `(number)`
+{y} `(number)`
+
+------------------------------------------------------------------------------
+Class ~
+{GuiHighlight} More info with 'help: highlight', 'help: highlight-args'
+Fields ~
+{guifg} `(string|nil)` Text color (eg. "white", "#a89984" )
+{guibg} `(string|nil)` Background color (eg. "black", "#d79921" )
+{altfont} `(boolean|nil)` Tui highlight arg
+{bold} `(boolean|nil)`  Tui highlight arg
+{inverse} `(boolean|nil)` Flips bg & fg colors
+{italic} `(boolean|nil)`  Tui highlight arg
+{nocombine} `(boolean|nil)`  Tui highlight arg
+{standout} `(boolean|nil)`  Tui highlight arg
+{strikethrough} `(boolean|nil)`  Tui highlight arg
+{undercurl} `(boolean|nil)`  Tui highlight arg
+{underdashed} `(boolean|nil)`  Tui highlight arg
+{underdotted} `(boolean|nil)`  Tui highlight arg
+{underdouble} `(boolean|nil)`  Tui highlight arg
+{underline} `(boolean|nil)`  Tui highlight arg
+
+------------------------------------------------------------------------------
+Class ~
+{Job} More info with 'help: highlight', 'help: highlight-args'
+Fields ~
+{fcn} `(function)` what to call
+{args} `(string|nil)`
+
+
+==============================================================================
+------------------------------------------------------------------------------
+"confetti.types"
+
+------------------------------------------------------------------------------
+                                                                     *hex2rgb()*
+                                `hex2rgb`({hex})
+
+Parameters ~
+{hex} `(string)` Hex color string, eg. "#aabbcc"
+Return ~
+`(number)` (0-255) integers r  -- Red
+Return ~
+`(number)` (0-255) integers g  -- Green
+Return ~
+`(number)` (0-255) integers b  -- Blue
+
+------------------------------------------------------------------------------
+                                                                *is_hex_light()*
+                             `is_hex_light`({hex})
+
+Parameters ~
+{hex} `(string)` Hex color string, eg. "#aabbcc"
+Return ~
+`(boolean)` is_light
+
+------------------------------------------------------------------------------
+                                                          *M.create_hl_groups()*
+                       `M.create_hl_groups`({highlights})
+Given an array of *bgcolors* with hex color values e.g. {"#cc241d", "#a89984", "#b16286"},
+create new highlight groups for them and return them
+Parameters ~
+{highlights} `(GuiHighlight[])`
+Return ~
+`(string[])` new_hl_groups
+
+------------------------------------------------------------------------------
+                                                          *M.remove_hl_groups()*
+                       `M.remove_hl_groups`({hl_groups})
+Given a set of *hl_groups*, delete them
+Parameters ~
+{hl_groups} `(string)` Named highlight group[]
+Return ~
+`(nil)`
+
+
+ vim:tw=78:ts=8:noet:ft=help:norl:

@@ -1,0 +1,17 @@
+M.create_hl_groups()	confetti.txt	/*M.create_hl_groups()*
+M.cword()	confetti.txt	/*M.cword()*
+M.log()	confetti.txt	/*M.log()*
+M.log_level	confetti.txt	/*M.log_level*
+M.ns_id	confetti.txt	/*M.ns_id*
+M.nvim_global_hl_groups	confetti.txt	/*M.nvim_global_hl_groups*
+M.reload()	confetti.txt	/*M.reload()*
+M.remove_hl_groups()	confetti.txt	/*M.remove_hl_groups()*
+M.setup()	confetti.txt	/*M.setup()*
+M.treesitter()	confetti.txt	/*M.treesitter()*
+M.visual_selection()	confetti.txt	/*M.visual_selection()*
+bgcolors	confetti.txt	/*bgcolors*
+hex2rgb()	confetti.txt	/*hex2rgb()*
+hl_with_pattern_search()	confetti.txt	/*hl_with_pattern_search()*
+hl_with_treesitter()	confetti.txt	/*hl_with_treesitter()*
+is_hex_light()	confetti.txt	/*is_hex_light()*
+jobs	confetti.txt	/*jobs*
