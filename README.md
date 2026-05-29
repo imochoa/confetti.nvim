@@ -2,12 +2,83 @@
 
 Highlight lots of words like it's a party
 
-# Dev
+## Features
 
-`<leader>uI`
-`<leader>ui`
-:EditQuery
-:help compl-omni)
+- 🎨 Highlight words with colorful backgrounds
+- 🌳 Smart highlighting using treesitter when available
+- 📝 Fallback to regex-based word matching
+- 🎯 Visual mode support
+- 🔧 Customizable color schemes
+- 👁️ Built-in highlight group viewer
+- 🪟 Multi-pane support - highlights appear in all visible windows
+- 🔇 Configurable logging levels for less verbose output
+
+## API
+
+```lua
+local confetti = require("confetti")
+
+-- Setup with default or custom colors
+confetti.setup({
+  colors = { ... },         -- Optional: custom color definitions
+  reused_hlgroups = {},     -- Optional: use existing highlight groups
+  log_level = vim.log.levels.WARN  -- Optional: logging verbosity (default: WARN)
+})
+
+-- Available log levels:
+-- vim.log.levels.DEBUG  - Show all debug messages
+-- vim.log.levels.INFO   - Show info and above
+-- vim.log.levels.WARN   - Show warnings and errors (default)
+-- vim.log.levels.ERROR  - Show only errors
+-- vim.log.levels.OFF    - No logging
+
+-- Highlight word at cursor
+confetti.highlight_at_cursor()
+
+-- Clear all highlights
+confetti.clear_highlights()
+
+-- Show all highlight groups (prints to console)
+confetti.show_highlights()
+
+-- Open a visual buffer showing all highlight groups
+confetti.test_highlights()
+
+-- Reload the plugin (for development)
+confetti.reload()
+```
+
+## Configuration Examples
+
+### Minimal setup (uses defaults)
+```lua
+require("confetti").setup()
+```
+
+### Quiet mode (no debug messages)
+```lua
+require("confetti").setup({
+  log_level = vim.log.levels.ERROR  -- Only show errors
+})
+```
+
+### Debug mode (show all messages)
+```lua
+require("confetti").setup({
+  log_level = vim.log.levels.DEBUG  -- Show all debug info
+})
+```
+
+### Custom colors
+```lua
+require("confetti").setup({
+  colors = {
+    { guifg = "black", guibg = "red" },
+    { guifg = "white", guibg = "blue" },
+    { guifg = "black", guibg = "yellow", bold = true },
+  }
+})
+```
 
 # Installation
 
@@ -21,15 +92,13 @@ return {
     opts = {
       reused_hlgroups = {},
       colors = {},
+      log_level = vim.log.levels.WARN,  -- Optional: control logging verbosity
     },
     keys = {
       { "<leader>*", "", desc = "+Confetti!", mode = { "n", "v" } },
       {
         "<leader>**",
         function()
-          -- vim.print("called!")
-          -- vim.print(vim.rtpath)
-          -- vim.print(vim.rtpath)
           require("confetti").highlight_at_cursor()
         end,
         mode = { "n", "v" },
@@ -41,6 +110,20 @@ return {
           require("confetti").clear_highlights()
         end,
         desc = "clear confetti highlights",
+      },
+      {
+        "<leader>*s",
+        function()
+          require("confetti").show_highlights()
+        end,
+        desc = "show confetti highlight groups",
+      },
+      {
+        "<leader>*t",
+        function()
+          require("confetti").test_highlights()
+        end,
+        desc = "test confetti highlights (visual)",
       },
     },
   },

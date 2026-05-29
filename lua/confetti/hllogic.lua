@@ -23,19 +23,23 @@ local constants = require("confetti.constants")
 ---     vim.bo.errorformat = '%f, line %l: %m' -- TODO
 ---@param regexp string Regular expression for vim.fn.searchpos
 ---@param hl_group string
+---@param bufnr number Buffer number to highlight in
+---@param winid number Window ID to use for searching
 ---@return boolean
-local hl_with_pattern_search = function(regexp, hl_group)
-  local bufnr = 0 -- current buffer
-  local cursor_pos = vim.api.nvim_win_get_cursor(0) -- remember cursor position
-  -- TODO: remember and recover visible screen?
+local hl_with_pattern_search_in_buffer = function(regexp, hl_group, bufnr, winid)
+  local original_win = vim.api.nvim_get_current_win()
+
+  -- Switch to the target window temporarily to perform search
+  vim.api.nvim_set_current_win(winid)
+
+  local cursor_pos = vim.api.nvim_win_get_cursor(winid) -- remember cursor position
 
   constants.log("Pattern: <" .. regexp .. ">")
-  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  vim.api.nvim_win_set_cursor(winid, { 1, 0 })
 
   local line_txt
   local start, final
   local lnum, col = 1, 0
-  -- local dont_wrap = "W"
   -- 'n'	do Not move the cursor
   -- 'W'	don't Wrap around the end of the file
   local search_flags = "W"
@@ -46,38 +50,42 @@ local hl_with_pattern_search = function(regexp, hl_group)
     while final ~= -1 do
       _, start, final = unpack(vim.fn.matchstrpos(line_txt, regexp, start))
       if start ~= -1 and final ~= -1 then
-        -- vim.api.nvim_buf_add_highlight(
-        -- 	0, -- bufnr
-        -- 	constants.ns_id, -- ns
-        -- 	hl_group, -- hl_group
-        -- 	lnum - 1, -- line
-        -- 	start, -- col_start
-        -- 	final -- col_end
-        -- )
-
-        local range_clear = vim.hl.range(bufnr, constants.ns_id, hl_group, { lnum - 1, start }, { lnum - 1, final }, {})
-        -- vim.api.nvim_buf_set_extmark(
-        -- 	0, -- current buffer
-        -- 	constants.ns_id,
-        -- 	lnum - 1, -- start line
-        -- 	start, -- col_start
-        -- 	{ -- end_row = start,
-        -- 		end_col = final,
-        -- 		hl_group = hl_group,
-        -- 	}
-        -- )
-
+        vim.hl.range(bufnr, constants.ns_id, hl_group, { lnum - 1, start }, { lnum - 1, final }, {})
         start = final
       end
     end
     -- Move cursor to next line, but check bounds first
-    local line_count = vim.api.nvim_buf_line_count(0)
+    local line_count = vim.api.nvim_buf_line_count(bufnr)
     if lnum + 1 <= line_count then
-      vim.api.nvim_win_set_cursor(0, { lnum + 1, 0 })
+      vim.api.nvim_win_set_cursor(winid, { lnum + 1, 0 })
     end
   end
   -- Recover cursor position
-  vim.api.nvim_win_set_cursor(0, cursor_pos)
+  vim.api.nvim_win_set_cursor(winid, cursor_pos)
+
+  -- Return to original window
+  vim.api.nvim_set_current_win(original_win)
+
+  return true
+end
+
+--- Wrapper that applies highlighting to all visible windows
+---@param regexp string Regular expression for vim.fn.searchpos
+---@param hl_group string
+---@return boolean
+local hl_with_pattern_search = function(regexp, hl_group)
+  -- Get all visible windows in the current tabpage
+  local windows = vim.api.nvim_tabpage_list_wins(0)
+
+  for _, winid in ipairs(windows) do
+    local bufnr = vim.api.nvim_win_get_buf(winid)
+    -- Only highlight in normal buffers (skip special buffers)
+    local buftype = vim.api.nvim_buf_get_option(bufnr, "buftype")
+    if buftype == "" then
+      hl_with_pattern_search_in_buffer(regexp, hl_group, bufnr, winid)
+    end
+  end
+
   return true
 end
 
@@ -155,11 +163,12 @@ end
 ---TODO: input?
 ---@param node_text string
 ---@param hl_group string
+---@param bufnr number Buffer number to highlight in
 ---@return boolean ok
-local hl_with_treesitter = function(node_text, hl_group)
+local hl_with_treesitter_in_buffer = function(node_text, hl_group, bufnr)
   local parser = nil
   local status, _ = pcall(function()
-    parser = vim.treesitter.get_parser()
+    parser = vim.treesitter.get_parser(bufnr)
   end)
 
   if status == false or parser == nil then
@@ -185,19 +194,19 @@ local hl_with_treesitter = function(node_text, hl_group)
   end
 
   local m = false
-  for pattern, match, metadata in query:iter_matches(tree:root(), 0) do
+  for pattern, match, metadata in query:iter_matches(tree:root(), bufnr) do
     -- match is an array of captured nodes
     for id, node in ipairs(match) do
       -- Validate node exists and has the range method
       if node and type(node.range) == "function" then
         -- Get the text of this identifier node safely
-        local ok, captured_text = pcall(vim.treesitter.get_node_text, node, 0)
+        local ok, captured_text = pcall(vim.treesitter.get_node_text, node, bufnr)
 
         if ok and captured_text then
           -- Only highlight if it matches our target node_text
           if captured_text == node_text then
             local row1, col1, row2, col2 = node:range()
-            vim.api.nvim_buf_add_highlight(0, constants.ns_id, hl_group, row1, col1, col2)
+            vim.api.nvim_buf_add_highlight(bufnr, constants.ns_id, hl_group, row1, col1, col2)
             m = true
           end
         end
@@ -205,6 +214,28 @@ local hl_with_treesitter = function(node_text, hl_group)
     end
   end
   return m
+end
+
+--- Wrapper that applies treesitter highlighting to all visible windows
+---@param node_text string
+---@param hl_group string
+---@return boolean ok
+local hl_with_treesitter = function(node_text, hl_group)
+  -- Get all visible windows in the current tabpage
+  local windows = vim.api.nvim_tabpage_list_wins(0)
+  local any_success = false
+
+  for _, winid in ipairs(windows) do
+    local bufnr = vim.api.nvim_win_get_buf(winid)
+    -- Only highlight in normal buffers (skip special buffers)
+    local buftype = vim.api.nvim_buf_get_option(bufnr, "buftype")
+    if buftype == "" then
+      local success = hl_with_treesitter_in_buffer(node_text, hl_group, bufnr)
+      any_success = any_success or success
+    end
+  end
+
+  return any_success
 end
 
 --[[

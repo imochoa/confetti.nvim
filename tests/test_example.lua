@@ -169,12 +169,23 @@ T["constants module"]["has namespace id"] = function()
   eq(has_ns, "number")
 end
 
-T["constants module"]["has default colors"] = function()
+T["constants module"]["has default colors for dark and light themes"] = function()
   child.lua([[_G.constants = require('confetti.constants')]])
-  local has_colors = child.lua_get([[type(_G.constants.default_colors)]])
-  local color_count = child.lua_get([[#_G.constants.default_colors]])
-  eq(has_colors, "table")
-  expect.no_equality(color_count, 0) -- Should have colors
+  -- Dark theme colors
+  local has_dark = child.lua_get([[type(_G.constants.dark_theme_colors)]])
+  local dark_count = child.lua_get([[#_G.constants.dark_theme_colors]])
+  eq(has_dark, "table")
+  expect.no_equality(dark_count, 0)
+  -- Light theme colors
+  local has_light = child.lua_get([[type(_G.constants.light_theme_colors)]])
+  local light_count = child.lua_get([[#_G.constants.light_theme_colors]])
+  eq(has_light, "table")
+  expect.no_equality(light_count, 0)
+  -- get_default_colors() returns a table
+  local has_fn = child.lua_get([[type(_G.constants.get_default_colors)]])
+  eq(has_fn, "function")
+  local default_count = child.lua_get([[#_G.constants.get_default_colors()]])
+  expect.no_equality(default_count, 0)
 end
 
 -- Test hllogic module
@@ -319,6 +330,56 @@ T["edge cases"]["handles last line highlighting"] = function()
   -- Should not crash (this was the original bug)
   local ok = child.lua_get([[_G.test_result]])
   eq(ok, true)
+end
+
+-- Test new highlight display functions
+T["highlight display"] = MiniTest.new_set()
+
+T["highlight display"]["show_highlights runs without error"] = function()
+  child.lua([[
+    M.setup()
+    _G.test_result = pcall(M.show_highlights)
+  ]])
+
+  local ok = child.lua_get([[_G.test_result]])
+  eq(ok, true)
+end
+
+T["highlight display"]["test_highlights creates buffer"] = function()
+  child.lua([[
+    M.setup()
+    local buf_before = vim.api.nvim_get_current_buf()
+    M.test_highlights()
+    local buf_after = vim.api.nvim_get_current_buf()
+    _G.created_new_buffer = buf_before ~= buf_after
+  ]])
+
+  -- Should have created a new buffer
+  local created = child.lua_get([[_G.created_new_buffer]])
+  eq(created, true)
+end
+
+T["highlight display"]["test_highlights buffer is read-only"] = function()
+  child.lua([[
+    M.setup()
+    M.test_highlights()
+    _G.is_modifiable = vim.api.nvim_buf_get_option(0, 'modifiable')
+  ]])
+
+  local modifiable = child.lua_get([[_G.is_modifiable]])
+  eq(modifiable, false)
+end
+
+T["highlight display"]["test_highlights buffer has content"] = function()
+  child.lua([[
+    M.setup()
+    M.test_highlights()
+    _G.line_count = vim.api.nvim_buf_line_count(0)
+  ]])
+
+  -- Should have multiple lines (header + groups + footer)
+  local line_count = child.lua_get([[_G.line_count]])
+  expect.no_equality(line_count, 0)
 end
 
 return T

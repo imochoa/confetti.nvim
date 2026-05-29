@@ -29,3 +29,6 @@ test-all:
 [group('test')]
 test-file file="./tests/example.lua":
     nvim --headless --noplugin -u "./scripts/init.lua" -c "lua MiniTest.run_file('{{ file }}')"
+
+show:
+  nvim -u scripts/init.lua -c "luafile tests/test_highlight_display.lua"
