@@ -272,8 +272,8 @@ M.test_highlights = function()
   -- Create a new buffer
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_current_buf(buf)
-  vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+  vim.bo[buf].buftype = "nofile"
+  vim.bo[buf].bufhidden = "wipe"
   vim.api.nvim_buf_set_name(buf, "Confetti Highlight Test")
 
   -- Create namespace for highlights
@@ -313,13 +313,13 @@ M.test_highlights = function()
   local line_num = 5 -- Start after header
   for _, group in ipairs(usable_hl_groups) do
     if vim.fn.hlexists(group) == 1 then
-      vim.api.nvim_buf_add_highlight(buf, ns_id, group, line_num, 0, -1)
+      vim.hl.range(buf, ns_id, group, { line_num, 0 }, { line_num, -1 })
       line_num = line_num + 1
     end
   end
 
   -- Make buffer read-only
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  vim.bo[buf].modifiable = false
 
   -- Add keybinding to close with 'q'
   vim.keymap.set("n", "q", "<cmd>bdelete<cr>", { buffer = buf, silent = true })
