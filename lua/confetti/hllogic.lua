@@ -100,30 +100,8 @@ M.visual_selection = function(hl_group)
   -- Get visual selection (see https://www.davekuhlman.org/nvim-lua-info-notes.html)
   -- CURRENT visual selection between v .
   -- Last visual selection is between < >
-  local _, line1, col1, _ = unpack(vim.fn.getpos("v"))
-  local _, line2, col2, _ = unpack(vim.fn.getpos("."))
-  -- Looks good actually, but could use cursor_pos?
-
-  -- Do we need to sort?
-  if line1 >= line2 and col1 > col2 then
-    local auxl, auxc = unpack({ line1, col1 })
-    line1, col1 = unpack({ line2, col2 })
-    line2, col2 = unpack({ auxl, auxc })
-  end
-  -- local tt = vim.api.nvim_buf_get_text(0, ls-1, cs-1, le-1, ce, {})
-  --
-  -- Use the line locations to retrieve the text in the selection/range.
-  -- The result is a table (array) containing one element for each line
-
-  -- register type "c""v" charwise "l""V"linewise "b"blockwise-visual
-  local charwise = "c"
-  local region = vim.region(0, { line1, col1 }, { line2, col2 }, charwise, true)
-  local text = ""
-  for linenr, cols in pairs(region) do
-    local buffer_text_tbl = vim.api.nvim_buf_get_text(0, linenr - 1, cols[1] - 1, linenr - 1, cols[2] - 1, {})
-    -- Only ever one line, so [1] is fine
-    text = text .. buffer_text_tbl[1]
-  end
+  -- getregion() orders the two positions itself and handles multibyte chars
+  local text = table.concat(vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos("."), { type = "v" }), "")
   -- local selected_lines = vim.api.nvim_buf_get_lines(0, line1 - 1, end_line, true)
   -- local selected_text = table.concat(selected_lines, "\n")
   -- TODO: trim?
@@ -132,7 +110,8 @@ M.visual_selection = function(hl_group)
     return nil
   end
   constants.log("Visual selection: <" .. text .. ">")
-  local regexp = text
+  -- Match the selection literally: \V makes only backslash special
+  local regexp = "\\V" .. vim.fn.escape(text, "\\")
   if hl_with_pattern_search(regexp, hl_group) then
     return { fcn = hl_with_pattern_search, args = { regexp, hl_group } }
   end
@@ -152,7 +131,7 @@ M.cword = function(hl_group)
   -- local regexp = "\\s\\zs" .. current_word .. "\\ze\\s"
   -- But it will still miss vi followed by the punctuation or at the end of the line/file. The right way is to put special word boundary symbols "\<" and "\>" around vi.
   -- s:\<vi\>:VIM:g
-  local regexp = "\\<" .. current_word .. "\\>"
+  local regexp = "\\V\\<" .. vim.fn.escape(current_word, "\\") .. "\\>"
   constants.log("regexp: <" .. regexp .. ">")
   if hl_with_pattern_search(regexp, hl_group) then
     return { fcn = hl_with_pattern_search, args = { regexp, hl_group } }
