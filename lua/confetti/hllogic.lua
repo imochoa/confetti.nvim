@@ -194,23 +194,16 @@ local hl_with_treesitter_in_buffer = function(node_text, hl_group, bufnr)
   end
 
   local m = false
-  for pattern, match, metadata in query:iter_matches(tree:root(), bufnr) do
-    -- match is an array of captured nodes
-    for id, node in ipairs(match) do
-      -- Validate node exists and has the range method
-      if node and type(node.range) == "function" then
-        -- Get the text of this identifier node safely
-        local ok, captured_text = pcall(vim.treesitter.get_node_text, node, bufnr)
-
-        if ok and captured_text then
-          -- Only highlight if it matches our target node_text
-          if captured_text == node_text then
-            local row1, col1, row2, col2 = node:range()
-            vim.api.nvim_buf_add_highlight(bufnr, constants.ns_id, hl_group, row1, col1, col2)
-            m = true
-          end
-        end
-      end
+  -- iter_captures yields one node per capture on every Neovim version, unlike
+  -- iter_matches, whose match values became node lists in 0.11
+  for _, node in query:iter_captures(tree:root(), bufnr) do
+    -- Get the text of this identifier node safely
+    local ok, captured_text = pcall(vim.treesitter.get_node_text, node, bufnr)
+    -- Only highlight if it matches our target node_text
+    if ok and captured_text == node_text then
+      local row1, col1, row2, col2 = node:range()
+      vim.hl.range(bufnr, constants.ns_id, hl_group, { row1, col1 }, { row2, col2 }, {})
+      m = true
     end
   end
   return m
@@ -246,6 +239,9 @@ Function to bind
 M.treesitter = function(hl_group)
   local node_text = nil
   local status, result = pcall(function()
+    -- get_node() only sees parsed trees; parse in case nothing else has (e.g. no
+    -- treesitter highlighting). Errors (no parser for this buffer) are caught by pcall.
+    vim.treesitter.get_parser(0):parse()
     local node = vim.treesitter.get_node({})
     if not node then
       return nil

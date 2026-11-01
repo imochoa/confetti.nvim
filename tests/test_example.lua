@@ -212,6 +212,24 @@ end
 -- Test treesitter with Lua code
 T["treesitter functionality"] = MiniTest.new_set()
 
+T["treesitter functionality"]["highlights matching identifiers only"] = function()
+  child.lua([=[
+    M.setup()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'local foo = 1', 'print(foo)', '-- foo'})
+    vim.bo.filetype = 'lua'
+    vim.api.nvim_win_set_cursor(0, {1, 7}) -- cursor on 'foo'
+    _G.job = require('confetti.hllogic').treesitter('ConfettiHLGroup1')
+    local ns_id = require('confetti.constants').ns_id
+    _G.positions = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, ns_id, 0, -1, {})) do
+      table.insert(_G.positions, { m[2], m[3] })
+    end
+  ]=])
+  eq(child.lua_get([[_G.job ~= nil]]), true)
+  -- Both identifiers, but not the word inside the comment
+  eq(child.lua_get([[_G.positions]]), { { 0, 6 }, { 1, 6 } })
+end
+
 T["treesitter functionality"]["handles lua file with function keyword"] = function()
   child.lua([[
     M.setup()
