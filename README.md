@@ -88,7 +88,6 @@ return {
   {
     "imochoa/confetti.nvim",
     -- lazy = true,
-    cmd = { "RereCmd", "Quickfail" },
     opts = {
       reused_hlgroups = {},
       colors = {},
@@ -147,7 +146,7 @@ return {
 -- ~/.config/nvim/lua/plugins/confetti.lua
 return {
  {
-  "imochoa/confetti",
+  "imochoa/confetti.nvim",
   opts = {
    reused_hlgroups = {},
    colors = {
@@ -176,7 +175,7 @@ return {
     { guifg = "black", guibg = "thistle", undercurl = true },
     { guifg = "black", guibg = "orangered", underdashed = true },
     { guifg = "black", guibg = "greenyellow", underdotted = true },
-    { guifg = "black", guibg = "acqua", underdouble = true },
+    { guifg = "black", guibg = "aqua", underdouble = true },
     { guifg = "black", guibg = "hotpink", underline = true },
    },
   },
@@ -205,7 +204,7 @@ return {
 ```mermaid
 flowchart LR
     A[highlight at cursor] --> B{In visual\nmode?}
-    B -->|Yes| C[hoho]
+    B -->|Yes| C[Highlight selection]
     B -->|No| D{Treesiter\nActive?}
     D -->|Yes| E[Use symbol at cursor]
     D -->|No| F[Use cword]
@@ -215,23 +214,24 @@ flowchart LR
 
 ## Prerequisites
 
-- Neovim (stable or nightly)
-- Lua/LuaJIT
-- [Luarocks](https://luarocks.org/) (for luacheck)
-- [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) (for stylua)
+- Neovim 0.11 or newer (the plugin uses `vim.hl.range`)
+- [just](https://github.com/casey/just)
+- [pre-commit](https://pre-commit.com/) (runs stylua and the other hooks)
 
 ## Setup
 
-Install development tools:
+Clone the test dependencies (mini.nvim, which provides `mini.test` and `mini.doc`) into `deps/`:
 
 ```bash
-just install-tools
+just setup
 ```
 
-This will install:
+Run the tests:
 
-- **luacheck** - Lua linter
-- **stylua** - Lua formatter
+```bash
+just test-all
+just test-file ./tests/test_logging.lua
+```
 
 ## Local Development Setup
 
@@ -240,8 +240,8 @@ To work on the plugin locally and test your changes:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/imochoa/confetti.git ~/code/confetti
-cd ~/code/confetti
+git clone https://github.com/imochoa/confetti.nvim.git ~/code/confetti.nvim
+cd ~/code/confetti.nvim
 ```
 
 ### 2. Configure Neovim to use your local copy
@@ -255,7 +255,7 @@ Update your Neovim configuration to point to your local clone instead of the Git
 return {
  {
   -- Use local directory instead of GitHub
-  dir = "~/code/confetti",
+  dir = "~/code/confetti.nvim",
   opts = {
    -- Your configuration here
   },
@@ -283,7 +283,7 @@ return {
 
 ```lua
 use {
- "~/code/confetti",
+ "~/code/confetti.nvim",
  config = function()
   require("confetti").setup({
    -- Your configuration here
@@ -316,20 +316,9 @@ vim.keymap.set("v", "<space>x", ":lua<CR>")
 
 ## Tools Configuration
 
-- **StyLua**: Configured in `.stylua.toml` for consistent code formatting
-- **Luacheck**: Configured in `.luacheckrc` for linting rules
-- **EditorConfig**: Configured in `.editorconfig` for editor consistency
-- **Testing**: Uses [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for testing framework
-
-## CI/CD
-
-GitHub Actions automatically runs on push and pull requests:
-
-- Linting with luacheck
-- Format checking with stylua
-- Tests on Ubuntu and macOS with stable and nightly Neovim
-
-See `.github/workflows/ci.yml` for details.
+- **StyLua**: Configured in `.stylua.toml`, run through `.pre-commit-config.yaml`
+- **Testing**: Uses [mini.test](https://github.com/nvim-mini/mini.nvim/blob/main/readmes/mini-test.md); tests live in `tests/test_*.lua`
+- **Docs**: `just docs` regenerates `doc/` with mini.doc
 
 # Lua
 
