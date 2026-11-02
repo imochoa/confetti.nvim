@@ -53,6 +53,51 @@ T["setup"]["accepts custom colors"] = function()
   eq(exists2, 1)
 end
 
+T["setup"]["can be re-run with fewer colors"] = function()
+  child.lua([[
+    M.setup()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'a test'})
+    vim.api.nvim_win_set_cursor(0, {1, 2})
+    for _ = 1, 5 do M.highlight_at_cursor() end
+    M.setup({ colors = { { guibg = '#ff0000' }, { guibg = '#00ff00' } } })
+    M.clear_highlights()
+    M.highlight_at_cursor()
+  ]])
+  eq(
+    child.lua_get(
+      [[vim.api.nvim_buf_get_extmarks(0, require('confetti.constants').ns_id, 0, -1, {details = true})[1][4].hl_group]]
+    ),
+    "ConfettiHLGroup1"
+  )
+end
+
+T["setup"]["switches default palette on ColorScheme"] = function()
+  child.lua([[
+    vim.o.background = 'dark'
+    M.setup({})
+    vim.o.background = 'light'
+    vim.cmd('doautocmd ColorScheme')
+  ]])
+  local light_bg = child.lua_get([[require('confetti.constants').light_theme_colors[1].guibg]])
+  eq(child.lua_get([[string.format('#%06x', vim.api.nvim_get_hl(0, { name = 'ConfettiHLGroup1' }).bg)]]), light_bg)
+end
+
+T["setup"]["reuses highlight groups defined after require"] = function()
+  child.lua([[
+    vim.api.nvim_set_hl(0, 'MyLateGroup', { bg = '#123456' })
+    M.setup({ reused_hlgroups = { 'MyLateGroup' } })
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'a test'})
+    vim.api.nvim_win_set_cursor(0, {1, 2})
+    M.highlight_at_cursor()
+  ]])
+  eq(
+    child.lua_get(
+      [[vim.api.nvim_buf_get_extmarks(0, require('confetti.constants').ns_id, 0, -1, {details = true})[1][4].hl_group]]
+    ),
+    "MyLateGroup"
+  )
+end
+
 -- Test highlight_at_cursor functionality
 T["highlight_at_cursor"] = MiniTest.new_set()
 

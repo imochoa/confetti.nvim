@@ -186,13 +186,16 @@ end
 ---@param config Config
 M.setup = function(config)
   -- Reset
+  -- Keep the caller's config untouched so a re-setup (e.g. on ColorScheme) picks
+  -- the default palette for the current 'background' again
   _fwd_config = config
   jobs = {}
   utils.remove_hl_groups(new_hlgroups or {})
   new_hlgroups = {}
+  current_hl_group_idx = 1
 
   -- handle nil
-  config = (config == nil) and {} or config
+  config = vim.deepcopy(config or {})
   config.reused_hlgroups = (config.reused_hlgroups == nil) and {} or config.reused_hlgroups
   config.colors = (config.colors == nil) and {} or config.colors
   -- Set log level (default to WARN if not specified)
@@ -205,7 +208,7 @@ M.setup = function(config)
   -- Existing groups?
   local reused_hlgroups = {}
   for _, el in ipairs(config.reused_hlgroups) do
-    if constants.nvim_global_hl_groups[el] ~= nil then
+    if vim.fn.hlexists(el) == 1 then
       -- Was an existing highlight group
       table.insert(reused_hlgroups, el)
     end
