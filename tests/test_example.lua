@@ -133,6 +133,21 @@ T["highlight_at_cursor"]["highlights cword"] = function()
   expect.no_equality(mark_count, 0) -- Should have highlights
 end
 
+T["highlight_at_cursor"]["highlights cword at column 0 on every line"] = function()
+  child.lua([[
+    M.setup()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'foo bar', 'a foo', 'foo'})
+    vim.api.nvim_win_set_cursor(0, {1, 0})
+    require('confetti.hllogic').cword('ConfettiHLGroup1')
+    local ns_id = require('confetti.constants').ns_id
+    _G.positions = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, ns_id, 0, -1, {})) do
+      table.insert(_G.positions, { m[2], m[3] })
+    end
+  ]])
+  eq(child.lua_get([[_G.positions]]), { { 0, 0 }, { 1, 2 }, { 2, 0 } })
+end
+
 -- Test clear_highlights functionality
 T["clear_highlights"] = MiniTest.new_set()
 

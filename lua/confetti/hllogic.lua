@@ -39,26 +39,31 @@ local hl_with_pattern_search_in_buffer = function(regexp, hl_group, bufnr, winid
 
   local line_txt
   local start, final
-  local lnum, col = 1, 0
-  -- 'n'	do Not move the cursor
+  local lnum
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  -- 'c'	accept a match at the cursor position (lines are scanned from column 0)
   -- 'W'	don't Wrap around the end of the file
-  local search_flags = "W"
-  while (lnum > 0) or (col > 0) do
-    lnum, col = unpack(vim.fn.searchpos(regexp, search_flags))
+  local search_flags = "cW"
+  while true do
+    lnum = vim.fn.searchpos(regexp, search_flags)[1]
+    if lnum == 0 then
+      break
+    end
     line_txt = vim.fn.getline(lnum)
-    final = 0
+    start, final = 0, 0
     while final ~= -1 do
       _, start, final = unpack(vim.fn.matchstrpos(line_txt, regexp, start))
       if start ~= -1 and final ~= -1 then
         vim.hl.range(bufnr, constants.ns_id, hl_group, { lnum - 1, start }, { lnum - 1, final }, {})
-        start = final
+        -- Step past zero-width matches so the scan always advances
+        start = (final > start) and final or final + 1
       end
     end
-    -- Move cursor to next line, but check bounds first
-    local line_count = vim.api.nvim_buf_line_count(bufnr)
-    if lnum + 1 <= line_count then
-      vim.api.nvim_win_set_cursor(winid, { lnum + 1, 0 })
+    -- Continue from the start of the next line; every match on this line is done
+    if lnum >= line_count then
+      break
     end
+    vim.api.nvim_win_set_cursor(winid, { lnum + 1, 0 })
   end
   -- Recover cursor position
   vim.api.nvim_win_set_cursor(winid, cursor_pos)
