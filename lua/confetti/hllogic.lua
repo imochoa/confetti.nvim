@@ -80,7 +80,7 @@ local hl_with_pattern_search = function(regexp, hl_group)
   for _, winid in ipairs(windows) do
     local bufnr = vim.api.nvim_win_get_buf(winid)
     -- Only highlight in normal buffers (skip special buffers)
-    local buftype = vim.api.nvim_buf_get_option(bufnr, "buftype")
+    local buftype = vim.bo[bufnr].buftype
     if buftype == "" then
       hl_with_pattern_search_in_buffer(regexp, hl_group, bufnr, winid)
     end
@@ -228,7 +228,7 @@ local hl_with_treesitter = function(node_text, hl_group)
   for _, winid in ipairs(windows) do
     local bufnr = vim.api.nvim_win_get_buf(winid)
     -- Only highlight in normal buffers (skip special buffers)
-    local buftype = vim.api.nvim_buf_get_option(bufnr, "buftype")
+    local buftype = vim.bo[bufnr].buftype
     if buftype == "" then
       local success = hl_with_treesitter_in_buffer(node_text, hl_group, bufnr)
       any_success = any_success or success
