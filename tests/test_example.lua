@@ -133,6 +133,25 @@ T["highlight_at_cursor"]["highlights cword"] = function()
   expect.no_equality(mark_count, 0) -- Should have highlights
 end
 
+T["highlight_at_cursor"]["matches a visual selection literally"] = function()
+  child.lua([=[
+    M.setup()
+    vim.keymap.set('v', '<F2>', function() M.highlight_at_cursor() end)
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'a.b axb a.b'})
+    vim.api.nvim_win_set_cursor(0, {1, 0})
+    vim.api.nvim_feedkeys(vim.keycode('vll<F2><Esc>'), 'x', false)
+    local ns_id = require('confetti.constants').ns_id
+    local seen = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, ns_id, 0, -1, {})) do
+      seen[m[3]] = true
+    end
+    _G.cols = vim.tbl_keys(seen)
+    table.sort(_G.cols)
+  ]=])
+  -- 'a.b' at columns 0 and 8, but not 'axb' at column 4
+  eq(child.lua_get([[_G.cols]]), { 0, 8 })
+end
+
 T["highlight_at_cursor"]["highlights cword at column 0 on every line"] = function()
   child.lua([[
     M.setup()
