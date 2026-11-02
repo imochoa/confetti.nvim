@@ -39,26 +39,31 @@ local hl_with_pattern_search_in_buffer = function(regexp, hl_group, bufnr, winid
 
   local line_txt
   local start, final
-  local lnum, col = 1, 0
-  -- 'n'	do Not move the cursor
+  local lnum
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  -- 'c'	accept a match at the cursor position (lines are scanned from column 0)
   -- 'W'	don't Wrap around the end of the file
-  local search_flags = "W"
-  while (lnum > 0) or (col > 0) do
-    lnum, col = unpack(vim.fn.searchpos(regexp, search_flags))
+  local search_flags = "cW"
+  while true do
+    lnum = vim.fn.searchpos(regexp, search_flags)[1]
+    if lnum == 0 then
+      break
+    end
     line_txt = vim.fn.getline(lnum)
-    final = 0
+    start, final = 0, 0
     while final ~= -1 do
       _, start, final = unpack(vim.fn.matchstrpos(line_txt, regexp, start))
       if start ~= -1 and final ~= -1 then
         vim.hl.range(bufnr, constants.ns_id, hl_group, { lnum - 1, start }, { lnum - 1, final }, {})
-        start = final
+        -- Step past zero-width matches so the scan always advances
+        start = (final > start) and final or final + 1
       end
     end
-    -- Move cursor to next line, but check bounds first
-    local line_count = vim.api.nvim_buf_line_count(bufnr)
-    if lnum + 1 <= line_count then
-      vim.api.nvim_win_set_cursor(winid, { lnum + 1, 0 })
+    -- Continue from the start of the next line; every match on this line is done
+    if lnum >= line_count then
+      break
     end
+    vim.api.nvim_win_set_cursor(winid, { lnum + 1, 0 })
   end
   -- Recover cursor position
   vim.api.nvim_win_set_cursor(winid, cursor_pos)
@@ -80,7 +85,7 @@ local hl_with_pattern_search = function(regexp, hl_group)
   for _, winid in ipairs(windows) do
     local bufnr = vim.api.nvim_win_get_buf(winid)
     -- Only highlight in normal buffers (skip special buffers)
-    local buftype = vim.api.nvim_buf_get_option(bufnr, "buftype")
+    local buftype = vim.bo[bufnr].buftype
     if buftype == "" then
       hl_with_pattern_search_in_buffer(regexp, hl_group, bufnr, winid)
     end
@@ -173,23 +178,16 @@ local hl_with_treesitter_in_buffer = function(node_text, hl_group, bufnr)
   end
 
   local m = false
-  for pattern, match, metadata in query:iter_matches(tree:root(), bufnr) do
-    -- match is an array of captured nodes
-    for id, node in ipairs(match) do
-      -- Validate node exists and has the range method
-      if node and type(node.range) == "function" then
-        -- Get the text of this identifier node safely
-        local ok, captured_text = pcall(vim.treesitter.get_node_text, node, bufnr)
-
-        if ok and captured_text then
-          -- Only highlight if it matches our target node_text
-          if captured_text == node_text then
-            local row1, col1, row2, col2 = node:range()
-            vim.api.nvim_buf_add_highlight(bufnr, constants.ns_id, hl_group, row1, col1, col2)
-            m = true
-          end
-        end
-      end
+  -- iter_captures yields one node per capture on every Neovim version, unlike
+  -- iter_matches, whose match values became node lists in 0.11
+  for _, node in query:iter_captures(tree:root(), bufnr) do
+    -- Get the text of this identifier node safely
+    local ok, captured_text = pcall(vim.treesitter.get_node_text, node, bufnr)
+    -- Only highlight if it matches our target node_text
+    if ok and captured_text == node_text then
+      local row1, col1, row2, col2 = node:range()
+      vim.hl.range(bufnr, constants.ns_id, hl_group, { row1, col1 }, { row2, col2 }, {})
+      m = true
     end
   end
   return m
@@ -207,7 +205,7 @@ local hl_with_treesitter = function(node_text, hl_group)
   for _, winid in ipairs(windows) do
     local bufnr = vim.api.nvim_win_get_buf(winid)
     -- Only highlight in normal buffers (skip special buffers)
-    local buftype = vim.api.nvim_buf_get_option(bufnr, "buftype")
+    local buftype = vim.bo[bufnr].buftype
     if buftype == "" then
       local success = hl_with_treesitter_in_buffer(node_text, hl_group, bufnr)
       any_success = any_success or success
@@ -225,6 +223,9 @@ Function to bind
 M.treesitter = function(hl_group)
   local node_text = nil
   local status, result = pcall(function()
+    -- get_node() only sees parsed trees; parse in case nothing else has (e.g. no
+    -- treesitter highlighting). Errors (no parser for this buffer) are caught by pcall.
+    vim.treesitter.get_parser(0):parse()
     local node = vim.treesitter.get_node({})
     if not node then
       return nil

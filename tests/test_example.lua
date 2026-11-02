@@ -53,6 +53,51 @@ T["setup"]["accepts custom colors"] = function()
   eq(exists2, 1)
 end
 
+T["setup"]["can be re-run with fewer colors"] = function()
+  child.lua([[
+    M.setup()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'a test'})
+    vim.api.nvim_win_set_cursor(0, {1, 2})
+    for _ = 1, 5 do M.highlight_at_cursor() end
+    M.setup({ colors = { { guibg = '#ff0000' }, { guibg = '#00ff00' } } })
+    M.clear_highlights()
+    M.highlight_at_cursor()
+  ]])
+  eq(
+    child.lua_get(
+      [[vim.api.nvim_buf_get_extmarks(0, require('confetti.constants').ns_id, 0, -1, {details = true})[1][4].hl_group]]
+    ),
+    "ConfettiHLGroup1"
+  )
+end
+
+T["setup"]["switches default palette on ColorScheme"] = function()
+  child.lua([[
+    vim.o.background = 'dark'
+    M.setup({})
+    vim.o.background = 'light'
+    vim.cmd('doautocmd ColorScheme')
+  ]])
+  local light_bg = child.lua_get([[require('confetti.constants').light_theme_colors[1].guibg]])
+  eq(child.lua_get([[string.format('#%06x', vim.api.nvim_get_hl(0, { name = 'ConfettiHLGroup1' }).bg)]]), light_bg)
+end
+
+T["setup"]["reuses highlight groups defined after require"] = function()
+  child.lua([[
+    vim.api.nvim_set_hl(0, 'MyLateGroup', { bg = '#123456' })
+    M.setup({ reused_hlgroups = { 'MyLateGroup' } })
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'a test'})
+    vim.api.nvim_win_set_cursor(0, {1, 2})
+    M.highlight_at_cursor()
+  ]])
+  eq(
+    child.lua_get(
+      [[vim.api.nvim_buf_get_extmarks(0, require('confetti.constants').ns_id, 0, -1, {details = true})[1][4].hl_group]]
+    ),
+    "MyLateGroup"
+  )
+end
+
 -- Test highlight_at_cursor functionality
 T["highlight_at_cursor"] = MiniTest.new_set()
 
@@ -105,6 +150,21 @@ T["highlight_at_cursor"]["matches a visual selection literally"] = function()
   ]=])
   -- 'a.b' at columns 0 and 8, but not 'axb' at column 4
   eq(child.lua_get([[_G.cols]]), { 0, 8 })
+end
+
+T["highlight_at_cursor"]["highlights cword at column 0 on every line"] = function()
+  child.lua([[
+    M.setup()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'foo bar', 'a foo', 'foo'})
+    vim.api.nvim_win_set_cursor(0, {1, 0})
+    require('confetti.hllogic').cword('ConfettiHLGroup1')
+    local ns_id = require('confetti.constants').ns_id
+    _G.positions = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, ns_id, 0, -1, {})) do
+      table.insert(_G.positions, { m[2], m[3] })
+    end
+  ]])
+  eq(child.lua_get([[_G.positions]]), { { 0, 0 }, { 1, 2 }, { 2, 0 } })
 end
 
 -- Test clear_highlights functionality
@@ -230,6 +290,24 @@ end
 
 -- Test treesitter with Lua code
 T["treesitter functionality"] = MiniTest.new_set()
+
+T["treesitter functionality"]["highlights matching identifiers only"] = function()
+  child.lua([=[
+    M.setup()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, {'local foo = 1', 'print(foo)', '-- foo'})
+    vim.bo.filetype = 'lua'
+    vim.api.nvim_win_set_cursor(0, {1, 7}) -- cursor on 'foo'
+    _G.job = require('confetti.hllogic').treesitter('ConfettiHLGroup1')
+    local ns_id = require('confetti.constants').ns_id
+    _G.positions = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, ns_id, 0, -1, {})) do
+      table.insert(_G.positions, { m[2], m[3] })
+    end
+  ]=])
+  eq(child.lua_get([[_G.job ~= nil]]), true)
+  -- Both identifiers, but not the word inside the comment
+  eq(child.lua_get([[_G.positions]]), { { 0, 6 }, { 1, 6 } })
+end
 
 T["treesitter functionality"]["handles lua file with function keyword"] = function()
   child.lua([[

@@ -1,5 +1,5 @@
 -- Manual test for the new highlight display functions
--- Run with: nvim -u scripts/init.lua -c "luafile tests/test_highlight_display.lua"
+-- Run with: nvim -u scripts/init.lua -c "luafile tests/manual_highlight_display_test.lua"
 
 local M = require("confetti")
 
