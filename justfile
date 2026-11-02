@@ -25,10 +25,10 @@ docs:
 test-all:
     nvim --headless --noplugin -u "./scripts/init.lua" -c "lua MiniTest.run()"
 
-# Run test from file at `$FILE` environment variable ????
+# Run a single test file
 [group('test')]
-test-file file="./tests/example.lua":
+test-file file="./tests/test_example.lua":
     nvim --headless --noplugin -u "./scripts/init.lua" -c "lua MiniTest.run_file('{{ file }}')"
 
 show:
-  nvim -u scripts/init.lua -c "luafile tests/test_highlight_display.lua"
+  nvim -u scripts/init.lua -c "luafile tests/manual_highlight_display_test.lua"
