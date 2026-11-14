@@ -128,11 +128,12 @@ M.highlight_at_cursor = function()
     M.setup()
   end
 
+  local prev_hl_group_idx = current_hl_group_idx
   local hl_group = next_hl_group()
   constants.log("Using: " .. hl_group)
 
   -- Go through priorities
-  -- (1) Visual selection?
+  -- (1) Visual selection? (false: selection rejected, already reported)
   local job = hllogic.visual_selection(hl_group)
   if job == nil then
     -- (2) treesitter?
@@ -143,29 +144,27 @@ M.highlight_at_cursor = function()
     end
   end
 
-  if job ~= nil then
+  if job then
     table.insert(jobs, job)
     constants.log("Tracked jobs:" .. vim.inspect(jobs))
   else
-    vim.notify("No highlighting method passed", vim.log.levels.WARN)
+    -- Nothing was highlighted: keep this colour for the next attempt
+    current_hl_group_idx = prev_hl_group_idx
+    if job == nil then
+      vim.notify("No highlighting method passed", vim.log.levels.WARN)
+    end
   end
 end
 
 --[[
- Clear highlights in the module-specific namespace from all visible buffers
+ Clear highlights in the module-specific namespace from all loaded buffers
+ (highlights are per-buffer extmarks, so hidden buffers and other tabs too)
  --]]
 M.clear_highlights = function()
   jobs = {}
-  -- Get all visible windows and clear highlights from their buffers
-  local windows = vim.api.nvim_tabpage_list_wins(0)
-  local cleared_buffers = {}
-
-  for _, winid in ipairs(windows) do
-    local bufnr = vim.api.nvim_win_get_buf(winid)
-    -- Only clear once per buffer (in case multiple windows show same buffer)
-    if not cleared_buffers[bufnr] then
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
       vim.api.nvim_buf_clear_namespace(bufnr, constants.ns_id, 0, -1)
-      cleared_buffers[bufnr] = true
     end
   end
 end

@@ -25,7 +25,7 @@ local constants = require("confetti.constants")
 ---@param hl_group string
 ---@param bufnr number Buffer number to highlight in
 ---@param winid number Window ID to use for searching
----@return boolean
+---@return boolean matched Whether anything was highlighted
 local hl_with_pattern_search_in_buffer = function(regexp, hl_group, bufnr, winid)
   local original_win = vim.api.nvim_get_current_win()
 
@@ -40,6 +40,7 @@ local hl_with_pattern_search_in_buffer = function(regexp, hl_group, bufnr, winid
   local line_txt
   local start, final
   local lnum
+  local matched = false
   local line_count = vim.api.nvim_buf_line_count(bufnr)
   -- 'c'	accept a match at the cursor position (lines are scanned from column 0)
   -- 'W'	don't Wrap around the end of the file
@@ -55,6 +56,7 @@ local hl_with_pattern_search_in_buffer = function(regexp, hl_group, bufnr, winid
       _, start, final = unpack(vim.fn.matchstrpos(line_txt, regexp, start))
       if start ~= -1 and final ~= -1 then
         vim.hl.range(bufnr, constants.ns_id, hl_group, { lnum - 1, start }, { lnum - 1, final }, {})
+        matched = matched or final > start
         -- Step past zero-width matches so the scan always advances
         start = (final > start) and final or final + 1
       end
@@ -71,32 +73,34 @@ local hl_with_pattern_search_in_buffer = function(regexp, hl_group, bufnr, winid
   -- Return to original window
   vim.api.nvim_set_current_win(original_win)
 
-  return true
+  return matched
 end
 
 --- Wrapper that applies highlighting to all visible windows
 ---@param regexp string Regular expression for vim.fn.searchpos
 ---@param hl_group string
----@return boolean
+---@return boolean matched Whether anything was highlighted in any window
 local hl_with_pattern_search = function(regexp, hl_group)
   -- Get all visible windows in the current tabpage
   local windows = vim.api.nvim_tabpage_list_wins(0)
+  local any_match = false
 
   for _, winid in ipairs(windows) do
     local bufnr = vim.api.nvim_win_get_buf(winid)
     -- Only highlight in normal buffers (skip special buffers)
     local buftype = vim.bo[bufnr].buftype
     if buftype == "" then
-      hl_with_pattern_search_in_buffer(regexp, hl_group, bufnr, winid)
+      local matched = hl_with_pattern_search_in_buffer(regexp, hl_group, bufnr, winid)
+      any_match = any_match or matched
     end
   end
 
-  return true
+  return any_match
 end
 
 --- Visual selection
 ---@param hl_group hl_group
----@return Job?
+---@return Job|false|nil job `false` when the selection was rejected
 M.visual_selection = function(hl_group)
   if vim.api.nvim_get_mode().mode ~= "v" then
     -- Not in visual mode
@@ -106,7 +110,13 @@ M.visual_selection = function(hl_group)
   -- CURRENT visual selection between v .
   -- Last visual selection is between < >
   -- getregion() orders the two positions itself and handles multibyte chars
-  local text = table.concat(vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos("."), { type = "v" }), "")
+  local lines = vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos("."), { type = "v" })
+  if #lines > 1 then
+    -- Matching is done line by line, so a multi-line selection can never match
+    vim.notify("Confetti: multi-line selections are not supported", vim.log.levels.WARN)
+    return false
+  end
+  local text = table.concat(lines, "")
   -- local selected_lines = vim.api.nvim_buf_get_lines(0, line1 - 1, end_line, true)
   -- local selected_text = table.concat(selected_lines, "\n")
   -- TODO: trim?
@@ -132,6 +142,9 @@ M.cword = function(hl_group)
   ---@type string
   local current_word = vim.call("expand", "<cword>") ---@diagnostic disable-line: param-type-mismatch,assign-type-mismatch
   constants.log("Current word: <" .. current_word .. ">")
+  if current_word == "" then
+    return nil
+  end
   -- local regexp = "\\W\\zs" .. current_word .. "\\ze\\W"
   -- local regexp = "\\s\\zs" .. current_word .. "\\ze\\s"
   -- But it will still miss vi followed by the punctuation or at the end of the line/file. The right way is to put special word boundary symbols "\<" and "\>" around vi.
